@@ -1,42 +1,59 @@
-# Configure the AzureRM provider
+# ==================================================================================================
+# AzureRM Provider and Core Resource Group Setup
+# - Configures Azure provider features
+# - Defines subscription and client data sources
+# - Declares input variables for RG name and location
+# - Creates the primary resource group for deployment
+# ==================================================================================================
+
+# --------------------------------------------------------------------------------------------------
+# Configure AzureRM provider
+# --------------------------------------------------------------------------------------------------
 provider "azurerm" {
-  # Enables the default features of the provider
   features {
     key_vault {
-      purge_soft_delete_on_destroy    = true
-      recover_soft_deleted_key_vaults = false
+      purge_soft_delete_on_destroy    = true   # Purge Key Vault immediately on destroy
+      recover_soft_deleted_key_vaults = false  # Do not auto-recover deleted Key Vaults
     }
 
     resource_group {
-      prevent_deletion_if_contains_resources = false
+      prevent_deletion_if_contains_resources = false # Allow deletion of RG even if non-empty
     }
   }
 }
 
-# Data source to fetch details of the primary subscription
+# --------------------------------------------------------------------------------------------------
+# Fetch subscription details (subscription ID, display name, etc.)
+# --------------------------------------------------------------------------------------------------
 data "azurerm_subscription" "primary" {}
 
-# Data source to fetch the details of the current Azure client
+# --------------------------------------------------------------------------------------------------
+# Fetch details of the authenticated client (SPN or user identity)
+# --------------------------------------------------------------------------------------------------
 data "azurerm_client_config" "current" {}
 
-# Define variables for resource group name and location
-
+# --------------------------------------------------------------------------------------------------
+# Input variable: Resource Group name
+# --------------------------------------------------------------------------------------------------
 variable "resource_group_name" {
-  description = "The name of the Azure resource group"
+  description = "The name of the Azure Resource Group"
   type        = string
   default     = "mcloud-project-rg"
 }
 
+# --------------------------------------------------------------------------------------------------
+# Input variable: Resource Group location
+# --------------------------------------------------------------------------------------------------
 variable "resource_group_location" {
-  description = "The Azure region where the resource group will be created"
+  description = "The Azure region where the Resource Group will be created"
   type        = string
   default     = "Central US"
 }
 
-# Define a resource group for all resources
+# --------------------------------------------------------------------------------------------------
+# Create the Resource Group
+# --------------------------------------------------------------------------------------------------
 resource "azurerm_resource_group" "ad" {
-  name     = var.resource_group_name     # Name of the resource group from variable
-  location = var.resource_group_location # Location from variable
+  name     = var.resource_group_name
+  location = var.resource_group_location
 }
-
-

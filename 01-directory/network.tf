@@ -1,67 +1,103 @@
-# Define a virtual network for the project
+# ==================================================================================================
+# Virtual Network, Subnets, and Network Security Group
+# - Creates VNet with dedicated subnets for VMs, mini-AD, and Bastion
+# - Configures NSG to allow SSH and RDP
+# - Associates NSG with VM subnet
+# ==================================================================================================
+
+# --------------------------------------------------------------------------------------------------
+# Define the Virtual Network
+# --------------------------------------------------------------------------------------------------
 resource "azurerm_virtual_network" "ad_vnet" {
-  name                = "ad-vnet"                          # Name of the VNet
-  address_space       = ["10.0.0.0/23"]                    # IP address range for the VNet
-  location            = azurerm_resource_group.ad.location # VNet location matches the resource group
-  resource_group_name = azurerm_resource_group.ad.name     # Links to the resource group
+  name                = "ad-vnet"
+  address_space       = ["10.0.0.0/23"]                     # Overall VNet range
+  location            = azurerm_resource_group.ad.location
+  resource_group_name = azurerm_resource_group.ad.name
 }
 
+# --------------------------------------------------------------------------------------------------
+# Define VM Subnet (10.0.0.0/25)
+# --------------------------------------------------------------------------------------------------
 resource "azurerm_subnet" "vm_subnet" {
-  name                 = "vm-subnet"                          # Name of the subnet
-  resource_group_name  = azurerm_resource_group.ad.name       # Links to the resource group
-  virtual_network_name = azurerm_virtual_network.ad_vnet.name # Links to the VNet
-  address_prefixes     = ["10.0.0.0/25"]                      # IP range for the subnet
+  name                 = "vm-subnet"
+  resource_group_name  = azurerm_resource_group.ad.name
+  virtual_network_name = azurerm_virtual_network.ad_vnet.name
+  address_prefixes     = ["10.0.0.0/25"]
 }
 
+# --------------------------------------------------------------------------------------------------
+# Define Mini-AD Subnet (10.0.0.128/25)
+# --------------------------------------------------------------------------------------------------
 resource "azurerm_subnet" "mini_ad_subnet" {
-  name                 = "mini-ad-subnet"                     # Name of the subnet
-  resource_group_name  = azurerm_resource_group.ad.name       # Links to the resource group
-  virtual_network_name = azurerm_virtual_network.ad_vnet.name # Links to the VNet
-  address_prefixes     = ["10.0.0.128/25"]                    # IP range for the subnet
+  name                 = "mini-ad-subnet"
+  resource_group_name  = azurerm_resource_group.ad.name
+  virtual_network_name = azurerm_virtual_network.ad_vnet.name
+  address_prefixes     = ["10.0.0.128/25"]
 }
 
+# --------------------------------------------------------------------------------------------------
+# Define Bastion Subnet (10.0.1.0/25)
+# NOTE: Bastion requires subnet name to be exactly "AzureBastionSubnet"
+# --------------------------------------------------------------------------------------------------
 resource "azurerm_subnet" "bastion_subnet" {
-  name                 = "AzureBastionSubnet"                 # Name of the subnet
-  resource_group_name  = azurerm_resource_group.ad.name       # Links to the resource group
-  virtual_network_name = azurerm_virtual_network.ad_vnet.name # Links to the VNet
-  address_prefixes     = ["10.0.1.0/25"]                      # IP range for the subnet
+  name                 = "AzureBastionSubnet"
+  resource_group_name  = azurerm_resource_group.ad.name
+  virtual_network_name = azurerm_virtual_network.ad_vnet.name
+  address_prefixes     = ["10.0.1.0/25"]
 }
 
-# Define a network security group (NSG) for controlling traffic
+# --------------------------------------------------------------------------------------------------
+# Define Network Security Group (NSG) for VM subnet
+# --------------------------------------------------------------------------------------------------
 resource "azurerm_network_security_group" "vm_nsg" {
-  name                = "vm-nsg"                           # Name of the NSG
-  location            = azurerm_resource_group.ad.location # NSG location matches the resource group
-  resource_group_name = azurerm_resource_group.ad.name     # Links to the resource group
+  name                = "vm-nsg"
+  location            = azurerm_resource_group.ad.location
+  resource_group_name = azurerm_resource_group.ad.name
 
-  # Security rule to allow SSH traffic
+  # Allow inbound SSH (Linux admin access)
   security_rule {
-    name                       = "Allow-SSH" # Rule name
-    priority                   = 1001        # Priority of the rule
-    direction                  = "Inbound"   # Inbound traffic
-    access                     = "Allow"     # Allow traffic
-    protocol                   = "Tcp"       # TCP protocol
-    source_port_range          = "*"         # Any source port
-    destination_port_range     = "22"        # Destination port for SSH
-    source_address_prefix      = "*"         # Allow traffic from all IPs
-    destination_address_prefix = "*"         # Applies to all destinations
+    name                       = "Allow-SSH"
+    priority                   = 1001
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "22"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
   }
 
-  # Security rule to allo RDP traffic
+  # Allow inbound RDP (Windows admin access)
   security_rule {
-    name                       = "Allow-RDP" # Rule name
-    priority                   = 1002        # Priority of the rule
-    direction                  = "Inbound"   # Inbound traffic
-    access                     = "Allow"     # Allow traffic
-    protocol                   = "Tcp"       # TCP protocol
-    source_port_range          = "*"         # Any source port
-    destination_port_range     = "3389"      # Destination port for HTTP
-    source_address_prefix      = "*"         # Allow traffic from all IPs
-    destination_address_prefix = "*"         # Applies to all destinations
+    name                       = "Allow-RDP"
+    priority                   = 1002
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "3389"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+
+  # Allow inbound SMB (AD and file share access)
+  security_rule {
+    name                       = "Allow-SMB"
+    priority                   = 1003
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "445"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
   }
 }
 
-# Associate NSG with Application Gateway subnet
-resource "azurerm_subnet_network_security_group_association" "vm-nsg-assoc" {
+# --------------------------------------------------------------------------------------------------
+# Associate NSG with VM subnet
+# --------------------------------------------------------------------------------------------------
+resource "azurerm_subnet_network_security_group_association" "vm_nsg_assoc" {
   subnet_id                 = azurerm_subnet.vm_subnet.id
   network_security_group_id = azurerm_network_security_group.vm_nsg.id
 }
