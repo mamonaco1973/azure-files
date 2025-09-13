@@ -21,8 +21,8 @@ resource "azurerm_key_vault_secret" "ubuntu_secret" {
 }
 
 # --- Create a network interface (NIC) for the Linux VM ---
-resource "azurerm_network_interface" "linux_vm_nic" {
-  name                = "linux-vm-nic"                          # NIC name
+resource "azurerm_network_interface" "nfs_gateway_nic" {
+  name                = "nfs-gateway-nic"                          # NIC name
   location            = data.azurerm_resource_group.ad.location # Place NIC in the same region as the resource group
   resource_group_name = data.azurerm_resource_group.ad.name     # Place NIC in the same resource group
 
@@ -45,7 +45,7 @@ resource "azurerm_linux_virtual_machine" "nfs_gateway" {
 
   # --- Attach the previously created network interface to the VM ---
   network_interface_ids = [
-    azurerm_network_interface.linux_vm_nic.id
+    azurerm_network_interface.nfs_gateway_nic.id
   ]
 
   # --- Configure the OS disk ---
