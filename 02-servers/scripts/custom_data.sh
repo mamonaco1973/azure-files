@@ -119,3 +119,28 @@ sudo systemctl restart ssh
 # Add a sudoers rule to grant passwordless sudo access to members of the
 # "linux-admins" AD group.
 sudo echo "%linux-admins ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/10-linux-admins
+
+# ---------------------------------------------------------------------------------
+# Section 9: Enforce Home Directory Permissions
+# ---------------------------------------------------------------------------------
+# Force new home directories to have mode 0700 (private)
+sudo sed -i 's/^\(\s*HOME_MODE\s*\)[0-9]\+/\10700/' /etc/login.defs
+
+# Trigger home directory creation for specific test accounts
+
+su -c "exit" rpatel
+su -c "exit" jsmith
+su -c "exit" akumar
+su -c "exit" edavis
+
+# Set NFS directory ownership and permissions
+chgrp mcloud-users /nfs
+chgrp mcloud-users /nfs/data
+chmod 770 /nfs
+chmod 770 /nfs/data
+chmod 700 /home/*
+
+cd /nfs
+git clone https://github.com/mamonaco1973/azure-files.git
+chmod -R 775 azure-files
+chgrp -R mcloud-users azure-files
