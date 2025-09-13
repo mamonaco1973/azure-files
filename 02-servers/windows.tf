@@ -66,11 +66,7 @@ resource "azurerm_windows_virtual_machine" "windows_ad_instance" {
     sku       = "2022-Datacenter"        # Specific version - 2022 Datacenter Edition
     version   = "latest"                 # Always use the latest available version
   }
-
-  # --- Set Windows Update behavior ---
-  patch_mode               = "AutomaticByOS" # Let the OS manage updates
-  enable_automatic_updates = true            # Enable automatic Windows updates
-
+  
   # --- Assign a system-managed identity to the VM (needed for Key Vault access) ---
   identity {
     type = "SystemAssigned"
