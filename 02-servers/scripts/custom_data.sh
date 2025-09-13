@@ -47,8 +47,10 @@ echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/microsoft.gpg] \
 https://packages.microsoft.com/ubuntu/22.04/prod jammy main" \
   | sudo tee /etc/apt/sources.list.d/aznfs.list
 
-sudo apt-get update -y
-sudo apt-get install -y aznfs  >> /root/userdata.log 2>&1
+echo "aznfs aznfs/enable_autoupdate boolean true" | sudo debconf-set-selections
+
+apt-get update -y
+apt-get install -y aznfs  >> /root/userdata.log 2>&1
 
 # ---------------------------------------------------------------------------------
 # Section 4: Mount NFS file system
