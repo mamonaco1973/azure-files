@@ -56,12 +56,12 @@ resource "azurerm_private_endpoint" "pe_file" {
   }
 }
 
-output "nfs_mount_command" {
-  value = <<EOT
-sudo apt-get -y install nfs-common
-sudo mkdir -p /mnt/azurefiles
-sudo mount -t nfs -o vers=4.1,sec=sys \
-  ${azurerm_storage_account.nfs_storage_account.name}.file.core.windows.net:/${azurerm_storage_share.nfs.name} /mnt/azurefiles
-EOT
-}
+# output "nfs_mount_command" {
+#   value = <<EOT
+# sudo apt-get -y install nfs-common
+# sudo mkdir -p /mnt/azurefiles
+# sudo mount -t nfs -o vers=4.1,sec=sys \
+#   ${azurerm_storage_account.nfs_storage_account.name}.file.core.windows.net:/${azurerm_storage_share.nfs.name} /mnt/azurefiles
+# EOT
+# }
 
