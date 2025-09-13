@@ -8,17 +8,17 @@
 # ==========================================================================================
 
 module "mini_ad" {
-  source            = "../modules/mini-ad"                       # Path to the mini-ad Terraform module
-  location          = var.resource_group_location                # Azure region (from input variable)
-  netbios           = var.netbios                                # NetBIOS domain name (e.g., MCLOUD)
-  vnet_id           = azurerm_virtual_network.ad_vnet.id         # Virtual Network where the AD will reside
-  realm             = var.realm                                  # Kerberos realm (usually UPPERCASE DNS domain)
-  users_json        = local.users_json                           # JSON blob of users and passwords (built below)
-  user_base_dn      = var.user_base_dn                           # Base DN for user accounts in LDAP
-  ad_admin_password = random_password.admin_password.result      # Randomized AD administrator password
-  dns_zone          = var.dns_zone                               # DNS zone (e.g., mcloud.mikecloud.com)
-  subnet_id         = azurerm_subnet.mini_ad_subnet.id           # Subnet for AD VM placement
-  admin_password    = random_password.sysadmin_password.result   # Linux sysadmin password for AD VM
+  source            = "github.com/mamonaco1973/module-azure-mini-ad" # Path to the mini-ad Terraform module
+  location          = var.resource_group_location                    # Azure region (from input variable)
+  netbios           = var.netbios                                    # NetBIOS domain name (e.g., MCLOUD)
+  vnet_id           = azurerm_virtual_network.ad_vnet.id             # Virtual Network where the AD will reside
+  realm             = var.realm                                      # Kerberos realm (usually UPPERCASE DNS domain)
+  users_json        = local.users_json                               # JSON blob of users and passwords (built below)
+  user_base_dn      = var.user_base_dn                               # Base DN for user accounts in LDAP
+  ad_admin_password = random_password.admin_password.result          # Randomized AD administrator password
+  dns_zone          = var.dns_zone                                   # DNS zone (e.g., mcloud.mikecloud.com)
+  subnet_id         = azurerm_subnet.mini_ad_subnet.id               # Subnet for AD VM placement
+  admin_password    = random_password.sysadmin_password.result       # Linux sysadmin password for AD VM
 }
 
 # ==========================================================================================
