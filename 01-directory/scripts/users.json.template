@@ -1,0 +1,55 @@
+{
+  "domain": {
+    "dnsZone": "${DNS_ZONE}",
+    "netbios": "${NETBIOS}",
+    "userBaseDn": "${USER_BASE_DN}"
+  },
+  "groups": [
+    { "name": "mcloud-users", "gidNumber": 10001 },
+    { "name": "us",           "gidNumber": 10002 },
+    { "name": "india",        "gidNumber": 10003 },
+    { "name": "linux-admins", "gidNumber": 10004 }
+  ],
+  "users": [
+    {
+      "username": "jsmith",
+      "givenName": "John",
+      "surname": "Smith",
+      "password": "${jsmith_password}",
+      "uidNumber": 10001,
+      "gidNumber": 10001,
+      "primaryGroup": "mcloud-users",
+      "extraGroups": ["us", "linux-admins"]
+    },
+    {
+      "username": "edavis",
+      "givenName": "Emily",
+      "surname": "Davis",
+      "password": "${edavis_password}",
+      "uidNumber": 10002,
+      "gidNumber": 10001,
+      "primaryGroup": "mcloud-users",
+      "extraGroups": ["us"]
+    },
+    {
+      "username": "rpatel",
+      "givenName": "Raj",
+      "surname": "Patel",
+      "password": "${rpatel_password}",
+      "uidNumber": 10003,
+      "gidNumber": 10001,
+      "primaryGroup": "mcloud-users",
+      "extraGroups": ["india", "linux-admins"]
+    },
+    {
+      "username": "akumar",
+      "givenName": "Amit",
+      "surname": "Kumar",
+      "password": "${akumar_password}",
+      "uidNumber": 10004,
+      "gidNumber": 10001,
+      "primaryGroup": "mcloud-users",
+      "extraGroups": ["india"]
+    }
+  ]
+}

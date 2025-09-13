@@ -1,0 +1,69 @@
+# ------------------------------------------------------------
+# Only run this script if not already joined to the domain
+# ------------------------------------------------------------
+
+$computerSystem = Get-WmiObject -Class Win32_ComputerSystem
+
+if ($computerSystem.PartOfDomain) {
+    Write-Output "Machine is already joined to a domain ($($computerSystem.Domain)). Exiting script."
+    exit
+}
+
+# ------------------------------------------------------------
+# Install Active Directory Components
+# ------------------------------------------------------------
+
+# Suppress progress bars to speed up execution
+$ProgressPreference = 'SilentlyContinue'
+
+# Install required Windows Features for Active Directory management
+Install-WindowsFeature -Name GPMC,RSAT-AD-PowerShell,RSAT-AD-AdminCenter,RSAT-ADDS-Tools,RSAT-DNS-Server
+
+# ------------------------------------------------------------
+# Install AZ CLI
+# ------------------------------------------------------------
+
+Invoke-WebRequest -Uri https://aka.ms/installazurecliwindowsx64 -OutFile .\AzureCLI.msi
+Start-Process msiexec.exe -Wait -ArgumentList '/I AzureCLI.msi /quiet'
+Remove-Item .\AzureCLI.msi
+$env:Path += ";C:\Program Files\Microsoft SDKs\Azure\CLI2\wbin"
+
+# ------------------------------------------------------------
+# Join instance to active directory
+# ------------------------------------------------------------
+
+az login --identity --allow-no-subscriptions
+$secretJson = az keyvault secret show --name admin-ad-credentials --vault-name ${vault_name} --query value -o tsv
+$secretObject = $secretJson | ConvertFrom-Json
+$password = $secretObject.password | ConvertTo-SecureString -AsPlainText -Force
+$cred = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $secretObject.username, $password
+Add-Computer -DomainName "${domain_fqdn}" -Credential $cred -Force
+
+# ------------------------------------------------------------
+# Grant RDP Access to All Users in "mcloud-users" Group
+# ------------------------------------------------------------
+
+Write-Output "Add users to the Remote Desktop Users Group"
+$domainGroup = "MCLOUD\mcloud-users"
+$maxRetries = 10
+$retryDelay = 30
+
+for ($i=1; $i -le $maxRetries; $i++) {
+    try {
+        Add-LocalGroupMember -Group "Remote Desktop Users" -Member $domainGroup -ErrorAction Stop
+        Write-Output "SUCCESS: Added $domainGroup to Remote Desktop Users"
+        break
+    } catch {
+        Write-Output "WARN: Attempt $i failed - waiting $retryDelay seconds..."
+        Start-Sleep -Seconds $retryDelay
+    }
+}
+
+# ------------------------------------------------------------
+# Final Reboot to Apply Changes
+# ------------------------------------------------------------
+
+Write-Output "Finalize join with a reboot"
+
+# Reboot the server to finalize the domain join and group policies
+shutdown /r /t 5 /c "Initial reboot to join domain" /f /d p:4:1
