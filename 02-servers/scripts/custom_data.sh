@@ -38,7 +38,38 @@ apt-get update -y
 apt-get install -y azure-cli
 
 # ---------------------------------------------------------------------------------
-# Section 3: Configure AD as the identity provider
+# Section 3: Install AZ NFS Helper
+# ---------------------------------------------------------------------------------
+
+curl -sSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor \
+  -o /etc/apt/keyrings/microsoft.gpg
+
+echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/microsoft.gpg] \
+https://packages.microsoft.com/ubuntu/22.04/prod jammy main" \
+  | sudo tee /etc/apt/sources.list.d/aznfs.list
+
+sudo apt-get update -y
+sudo apt-get install -y aznfs
+
+# ---------------------------------------------------------------------------------
+# Section 4: Mount NFS file system
+# ---------------------------------------------------------------------------------
+
+mkdir -p /nfs
+echo "${storage_account}.file.core.windows.net:/nfs /nfs aznfs defaults 0 0" | \
+  sudo tee -a /etc/fstab > /dev/null
+systemctl daemon-reload
+mount /nfs
+
+mkdir -p /nfs/home
+mkdir -p /nfs/data
+echo "${storage_account}.file.core.windows.net:/nfs/home /home aznfs defaults 0 0" | \
+  sudo tee -a /etc/fstab > /dev/null
+systemctl daemon-reload
+mount /home
+
+# ---------------------------------------------------------------------------------
+# Section 5: Configure AD as the identity provider
 # ---------------------------------------------------------------------------------
 
 az login --identity --allow-no-subscriptions
@@ -54,7 +85,7 @@ echo -e "$admin_password" | sudo /usr/sbin/realm join -U "$admin_username" \
     >> /tmp/join.log 2>> /tmp/join.log
 
 # ---------------------------------------------------------------------------------
-# Section 4: Configure SSSD for AD Integration
+# Section 6: Configure SSSD for AD Integration
 # ---------------------------------------------------------------------------------
 
 # Modify the SSSD configuration file to simplify user login and home directory creation.
@@ -82,7 +113,7 @@ sudo systemctl restart sssd
 sudo systemctl restart ssh
 
 # ---------------------------------------------------------------------------------
-# Section 5: Grant Sudo Privileges to AD Linux Admins
+# Section 7: Grant Sudo Privileges to AD Linux Admins
 # ---------------------------------------------------------------------------------
 
 # Add a sudoers rule to grant passwordless sudo access to members of the

@@ -12,7 +12,7 @@ resource "azurerm_storage_account" "nfs_storage_account" {
 # NFS File Share
 # ----------------------------
 resource "azurerm_storage_share" "nfs" {
-  name                 = "nfsfileshare"
+  name                 = "nfs"
   storage_account_id   = azurerm_storage_account.nfs_storage_account.id
   enabled_protocol     = "NFS"
   quota                = 100  

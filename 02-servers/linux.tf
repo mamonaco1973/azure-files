@@ -67,6 +67,7 @@ resource "azurerm_linux_virtual_machine" "linux_ad_instance" {
   custom_data = base64encode(templatefile("./scripts/custom_data.sh", {
     vault_name  = data.azurerm_key_vault.ad_key_vault.name # Inject Key Vault name into the script
     domain_fqdn = var.dns_zone                             # Inject domain FQDN into the script
+    storage_account = azurerm_storage_account.nfs_storage_account.name # Inject storage account name
   }))
 
   # --- Assign a system-assigned managed identity to the VM ---
