@@ -33,7 +33,7 @@ resource "azurerm_network_interface" "nfs_gateway_nic" {
     private_ip_address_allocation = "Dynamic"                        # Dynamically assign private IP
   }
 }
-# --- Provision the Linux Virtual Machine ---
+# --- Provision the NFS Gateway Virtual Machine ---
 resource "azurerm_linux_virtual_machine" "nfs_gateway" {
   name                            = "nfs-gateway-${random_string.vm_suffix.result}" # Name the VM with a random suffix
   location                        = data.azurerm_resource_group.ad.location      # Same location as resource group
