@@ -32,7 +32,7 @@ resource "azurerm_key_vault" "ad_key_vault" {
   sku_name                  = "standard"                                              # Standard SKU (sufficient for secrets)
   tenant_id                 = data.azurerm_client_config.current.tenant_id            # Azure AD tenant ID
   purge_protection_enabled  = false    
-  rbac_authorization_enabled  = true                                                # Allow permanent delete (lab use only)
+  rbac_authorization_enabled = true                                                   # Allow permanent delete (lab use only)
 }
 
 # --------------------------------------------------------------------------------------------------
