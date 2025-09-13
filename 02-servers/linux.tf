@@ -33,9 +33,9 @@ resource "azurerm_network_interface" "linux_vm_nic" {
     private_ip_address_allocation = "Dynamic"                        # Dynamically assign private IP
   }
 }
-# --- Provision the actual Linux Virtual Machine ---
-resource "azurerm_linux_virtual_machine" "linux_ad_instance" {
-  name                            = "linux-ad-${random_string.vm_suffix.result}" # Name the VM with a random suffix
+# --- Provision the Linux Virtual Machine ---
+resource "azurerm_linux_virtual_machine" "nfs_gateway" {
+  name                            = "nfs-gateway-${random_string.vm_suffix.result}" # Name the VM with a random suffix
   location                        = data.azurerm_resource_group.ad.location      # Same location as resource group
   resource_group_name             = data.azurerm_resource_group.ad.name          # Same resource group
   size                            = "Standard_B1s"                               # Small VM size (for test/dev)
@@ -67,6 +67,9 @@ resource "azurerm_linux_virtual_machine" "linux_ad_instance" {
   custom_data = base64encode(templatefile("./scripts/custom_data.sh", {
     vault_name  = data.azurerm_key_vault.ad_key_vault.name # Inject Key Vault name into the script
     domain_fqdn = var.dns_zone                             # Inject domain FQDN into the script
+    netbios     = var.netbios                              # Inject NetBIOS domain name
+    force_group = "mcloud-users" 
+    realm       = var.realm
     storage_account = azurerm_storage_account.nfs_storage_account.name # Inject storage account name
   }))
 
@@ -80,5 +83,5 @@ resource "azurerm_linux_virtual_machine" "linux_ad_instance" {
 resource "azurerm_role_assignment" "vm_lnx_key_vault_secrets_user" {
   scope                = data.azurerm_key_vault.ad_key_vault.id                                   # Target the Key Vault itself
   role_definition_name = "Key Vault Secrets User"                                                 # Predefined Azure role that allows reading secrets
-  principal_id         = azurerm_linux_virtual_machine.linux_ad_instance.identity[0].principal_id # Managed identity of this VM
+  principal_id         = azurerm_linux_virtual_machine.nfs_gateway.identity[0].principal_id # Managed identity of this VM
 }

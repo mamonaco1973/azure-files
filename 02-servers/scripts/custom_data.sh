@@ -14,17 +14,16 @@ apt-get update -y
 # Set the environment variable to prevent interactive prompts during installation.
 export DEBIAN_FRONTEND=noninteractive
 
-# Install necessary packages for AD integration, system management, and utilities.
-# - realmd, sssd-ad, sssd-tools: Tools for AD integration and authentication.
-# - libnss-sss, libpam-sss: Libraries for integrating SSSD with the system.
-# - adcli, samba-common-bin, samba-libs: Tools for AD and Samba integration.
-# - oddjob, oddjob-mkhomedir: Automatically create home directories for AD users.
-# - packagekit: Package management toolkit.
-# - krb5-user: Kerberos authentication tools.
-# - nano, vim: Text editors for configuration file editing.
-apt-get install less unzip realmd sssd-ad sssd-tools libnss-sss \
-    libpam-sss adcli samba-common-bin samba-libs oddjob \
-    oddjob-mkhomedir packagekit krb5-user nano vim -y
+# Install packages needed for:
+#   - Active Directory integration: realmd, sssd-ad, adcli, krb5-user
+#   - NSS/PAM integration: libnss-sss, libpam-sss, winbind, libpam-winbind, libnss-winbind
+#   - Samba file services: samba, samba-common-bin, samba-libs
+#   - Home directory automation: oddjob, oddjob-mkhomedir
+#   - Utilities: less, unzip, nano, vim, nfs-common, stunnel4
+apt-get install -y less unzip realmd sssd-ad sssd-tools libnss-sss \
+    libpam-sss adcli samba samba-common-bin samba-libs oddjob \
+    oddjob-mkhomedir packagekit krb5-user nano vim nfs-common \
+    winbind libpam-winbind libnss-winbind stunnel4 >> /root/userdata.log 2>&1
 
 # ---------------------------------------------------------------------------------
 # Section 2: Install AZ CLI
@@ -35,13 +34,13 @@ AZ_REPO=$(lsb_release -cs)
 echo "deb [signed-by=/etc/apt/keyrings/microsoft-azure-cli-archive-keyring.gpg] https://packages.microsoft.com/repos/azure-cli/ $AZ_REPO main" \
     | tee /etc/apt/sources.list.d/azure-cli.list
 apt-get update -y
-apt-get install -y azure-cli
+apt-get install -y azure-cli  >> /root/userdata.log 2>&1
 
 # ---------------------------------------------------------------------------------
 # Section 3: Install AZ NFS Helper
 # ---------------------------------------------------------------------------------
 
-curl -sSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor \
+curl -sSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor --yes \
   -o /etc/apt/keyrings/microsoft.gpg
 
 echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/microsoft.gpg] \
@@ -49,7 +48,7 @@ https://packages.microsoft.com/ubuntu/22.04/prod jammy main" \
   | sudo tee /etc/apt/sources.list.d/aznfs.list
 
 sudo apt-get update -y
-sudo apt-get install -y aznfs
+sudo apt-get install -y aznfs  >> /root/userdata.log 2>&1
 
 # ---------------------------------------------------------------------------------
 # Section 4: Mount NFS file system
@@ -113,7 +112,116 @@ sudo systemctl restart sssd
 sudo systemctl restart ssh
 
 # ---------------------------------------------------------------------------------
-# Section 7: Grant Sudo Privileges to AD Linux Admins
+# Section 7: Configure Samba File Server
+# ---------------------------------------------------------------------------------
+# Stop SSSD temporarily to allow Samba configuration updates
+sudo systemctl stop sssd
+
+# Write Samba configuration file (smb.conf) with AD + Winbind integration
+cat <<EOT > /tmp/smb.conf
+[global]
+workgroup = ${netbios}
+security = ads
+
+# Performance tuning
+strict sync = no
+sync always = no
+aio read size = 1
+aio write size = 1
+use sendfile = yes
+
+passdb backend = tdbsam
+
+# Printing subsystem (legacy, usually unused in cloud)
+printing = cups
+printcap name = cups
+load printers = yes
+cups options = raw
+
+kerberos method = secrets and keytab
+
+# Default user template
+template homedir = /home/%U
+template shell = /bin/bash
+#netbios 
+
+# File creation masks
+create mask = 0770
+force create mode = 0770
+directory mask = 0770
+force group = ${force_group}
+
+realm = ${realm}
+
+# ID mapping configuration
+idmap config ${realm} : backend = sss
+idmap config ${realm} : range = 10000-1999999999
+idmap config * : backend = tdb
+idmap config * : range = 1-9999
+
+# Winbind options
+min domain uid = 0
+winbind use default domain = yes
+winbind normalize names = yes
+winbind refresh tickets = yes
+winbind offline logon = yes
+winbind enum groups = yes
+winbind enum users = yes
+winbind cache time = 30
+idmap cache time = 60
+winbind negative cache time = 0
+
+[homes]
+comment = Home Directories
+browseable = No
+read only = No
+inherit acls = Yes
+
+[nfs]
+comment = Mounted EFS area
+path = /nfs
+read only = no
+guest ok = no
+EOT
+
+# Deploy Samba configuration
+sudo cp /tmp/smb.conf /etc/samba/smb.conf
+sudo rm /tmp/smb.conf
+
+# Insert NetBIOS hostname dynamically
+head /etc/hostname -c 15 > /tmp/netbios-name
+value=$(</tmp/netbios-name)
+value=$(echo "$value" | tr -d '-' | tr '[:lower:]' '[:upper:]')
+export netbios="$${value^^}"
+sudo sed -i "s/#netbios/netbios name=$netbios/g" /etc/samba/smb.conf
+
+# Update NSSwitch configuration for Winbind integration
+cat <<EOT > /tmp/nsswitch.conf
+passwd:     files sss winbind
+group:      files sss winbind
+automount:  files sss winbind
+shadow:     files sss winbind
+hosts:      files dns myhostname
+bootparams: nisplus [NOTFOUND=return] files
+ethers:     files
+netmasks:   files
+networks:   files
+protocols:  files
+rpc:        files
+services:   files sss
+netgroup:   files sss
+publickey:  nisplus
+aliases:    files nisplus
+EOT
+
+sudo cp /tmp/nsswitch.conf /etc/nsswitch.conf
+sudo rm /tmp/nsswitch.conf
+
+# Restart Samba-related services
+sudo systemctl restart winbind smb nmb sssd
+
+# ---------------------------------------------------------------------------------
+# Section 8: Grant Sudo Privileges to AD Linux Admins
 # ---------------------------------------------------------------------------------
 
 # Add a sudoers rule to grant passwordless sudo access to members of the
