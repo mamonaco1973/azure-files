@@ -45,6 +45,12 @@ data "azurerm_subnet" "vm_subnet" {
 }
 # This lets Terraform reference the subnet for VM network interfaces, etc.
 
+# Data source to look up existing VNet
+data "azurerm_virtual_network" "ad_vnet" {
+  name                = "ad-vnet"                               # Your existing VNet name
+  resource_group_name = data.azurerm_resource_group.ad.name      # RG where the VNet lives
+}
+
 # --- Data source to fetch details about the existing Key Vault ---
 data "azurerm_key_vault" "ad_key_vault" {
   name                = var.vault_name          # Key Vault name provided via variable
