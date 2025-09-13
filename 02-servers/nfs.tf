@@ -6,7 +6,6 @@ resource "azurerm_storage_account" "nfs_storage_account" {
   account_tier             = "Premium"
   account_replication_type = "LRS"
   public_network_access_enabled = false
-  https_traffic_only_enabled = false 
 }
 
 # ----------------------------
