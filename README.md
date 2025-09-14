@@ -9,27 +9,34 @@ The mini-AD environment (Samba 4 on Ubuntu) provides Active Directory authentica
 
 ![Azure diagram](azure-files.png)
 
+## Azure Files with NFS (Linux Integration)
 
-## Limitations  
+Azure Files supports the **NFS 4.1 protocol**, allowing Linux clients to mount file shares directly. This makes it ideal for POSIX-compliant workloads, multi-node analytics clusters, and containerized applications that expect a native NFS mount.
 
-While the mini-AD deployment provides a functional and cost-effective Active Directory environment for labs, demos, and development, it does not include many of the advanced features found in **Azure AD Domain Services** or **Windows Server AD on Azure**:  
+### Key Features
 
-### Issues Related to PaaS vs IaaS (Operational & Platform-Level)  
-- **High Availability & Multi-Region** – Managed AD provisions redundant DCs automatically; mini-AD is a single VM.  
-- **Automated Backups & Snapshots** – Managed AD handles backups; mini-AD requires manual snapshots or Recovery Services Vault.  
-- **Automatic Patching** – Managed AD auto-patches OS and AD services; mini-AD requires manual updates.  
-- **Security Hardening & Compliance** – Managed AD is pre-hardened for Azure compliance; mini-AD depends on your configuration.  
-- **24/7 Microsoft Support** – Managed AD includes support; mini-AD requires you to manage everything.  
-- **Monitoring & Metrics** – Managed AD integrates with Azure Monitor; mini-AD requires manual monitoring setup.  
+- **Protocol Support** – Full **NFSv4.1** support (no NFSv3) with strong consistency and support for file locking.  
+- **Scalability** – File shares can scale up to **100 TiB** in the standard tier and even larger in the premium tier.  
+- **Performance Tiers** –  
+  - **Standard (HDD-backed):** Lower-cost, throughput capped per TiB provisioned.  
+  - **Premium (SSD-backed):** Consistent low-latency performance with provisioned IOPS and throughput.  
+- **POSIX Permissions** – Supports Linux UID/GID semantics and **root squash**, making it suitable for multi-user environments.  
 
-### Functional Differences (AD Feature Gaps & Compatibility)  
-- **Azure Service Integration** – Managed AD integrates with AVD, FSLogix, SQL MI, and more; mini-AD requires extra setup.  
-- **Group Policy Objects (GPOs)** – Managed AD supports full GPOs; Samba GPO support is limited and lacks replication.  
-- **PowerShell AD Cmdlets** – Managed AD supports AD Web Services; Samba mini-AD lacks native cmdlet support.  
-- **Kerberos Trusts with On-Prem AD** – Managed AD supports trusts; mini-AD requires manual Kerberos/LDAP configuration.  
-- **No Entra ID Support** – Mini-AD cannot integrate with Microsoft Entra ID (Azure AD). This prevents seamless single sign-on (SSO), conditional access, and direct integration with Microsoft 365 or modern identity-driven security features, which limits its usefulness in hybrid identity scenarios.  
+## Why a Samba Gateway is Needed for Windows Access
 
----
+While Azure Files supports **NFS 4.1** for Linux clients, Windows does not natively support mounting NFS-based Azure Files shares in a domain-integrated, seamless way. Windows clients are designed to use **SMB** for file access and authentication.
+
+Because of this mismatch:
+
+- **Protocol Limitation** – An **Azure Files share must be created as either SMB or NFS**. You cannot mount the same share with both protocols. If both Linux (NFS) and Windows (SMB) access are required against the same dataset, a gateway (such as Samba) is necessary.  
+- **Windows ↔ NFS Gap** – Windows clients can technically mount some NFS shares, but support is limited, lacks domain integration, and does not honor Active Directory user/group mappings in the same way as SMB.  
+- **Authentication Differences** – NFS enforces access through **POSIX UID/GID mappings**, whereas Windows relies on **Active Directory credentials with Kerberos/NTLM** over SMB. Without a translation layer, Windows can’t map AD identities to NFS ownership properly.  
+- **Samba Gateway Role** – A Samba server (joined to the Mini-AD domain) acts as a **protocol translator**:  
+  - Frontend: Exposes storage to Windows clients via **SMB shares** with full AD authentication.  
+  - Backend: Mounts the Azure Files **NFS share** on Linux, preserving POSIX semantics.  
+- **Unified Access** – This allows Linux clients to access the same data natively over NFS, while Windows clients use SMB, both seeing a consistent shared namespace.  
+
+In short, the Samba gateway bridges the protocol and identity gap, making **Azure Files with NFS usable in mixed Linux/Windows environments** where AD-based authentication is required on the Windows side.
 
 ## Prerequisites  
 
@@ -44,18 +51,16 @@ If this is your first time watching our content, we recommend starting with this
 ## Download this Repository  
 
 ```bash
-git clone https://github.com/mamonaco1973/azure-mini-ad.git
-cd azure-mini-ad
+git clone https://github.com/mamonaco1973/azure-files.git
+cd azure-files
 ```  
-
----
 
 ## Build the Code  
 
 Run [check_env](check_env.sh) to validate your environment, then run [apply](apply.sh) to provision the infrastructure.  
 
 ```bash
-develop-vm:~/azure-mini-ad$ ./apply.sh
+develop-vm:~/azure-files$ ./apply.sh
 NOTE: Validating that required commands are in PATH.
 NOTE: az is found in the current PATH.
 NOTE: terraform is found in the current PATH.
@@ -66,8 +71,6 @@ Initializing provider plugins...
 Terraform has been successfully initialized!
 ```  
 
----
-
 ### Build Results  
 
 When the deployment completes, the following resources are created:  
@@ -75,10 +78,10 @@ When the deployment completes, the following resources are created:
 - **Networking:**  
   - A VNet with public and private subnets  
   - Azure Bastion for secure RDP/SSH without public IPs  
-  - Route tables configured for AD and client communication  
+  - Route tables configured for AD, clients, and storage access  
 
 - **Security & Identity:**  
-  - NSGs for domain controller, Linux client, and Windows client  
+  - NSGs for domain controller, Linux client, Windows client, and storage access  
   - Azure Key Vault for credential storage (admin + user accounts)  
   - Managed Identities for VM-to-Key Vault secret retrieval  
 
@@ -89,9 +92,16 @@ When the deployment completes, the following resources are created:
 
 - **Client Instances:**  
   - Windows VM joined to the domain via boot-time PowerShell script  
-  - Linux VM joined to the domain with SSSD integration via custom-data script  
+  - Linux VM joined to the domain with SSSD integration via cloud-init  
 
----
+- **Azure Files Storage:**  
+  - Premium Storage Account with SMB and/or NFS protocol enabled  
+  - File shares provisioned for shared data and home directories  
+
+- **File Access Integration:**  
+  - A Linux VM mounts the Azure Files NFS share  
+  - The same Linux VM exposes the mounted share via **Samba**, acting as a gateway for Windows clients  
+  - This enables domain-joined Windows machines to access Azure Files storage transparently using SMB, while Linux clients mount NFS directly  
 
 ### Users and Groups  
 
@@ -115,11 +125,11 @@ The domain controller provisions **sample users and groups** via Terraform templ
 | rpatel   | Raj Patel   | 10003     | 10001     | mcloud-users, india, linux-admins|
 | akumar   | Amit Kumar  | 10004     | 10001     | mcloud-users, india              |
 
----
+
 
 ### Log into Windows Instance  
 
-When the Windows instance boots, the [userdata script](02-servers/scripts/userdata.ps1) executes the following tasks:  
+When the Windows instance boots, the [ad_join script](02-servers/scripts/ad_join.ps1.template) executes the following tasks:  
 
 - Install Active Directory Administrative Tools  
 - Install AWS CLI  
@@ -131,11 +141,9 @@ Administrator credentials are stored in the `admin_ad_credentials` secret.
 
 ![Windows EC2 Instance](windows.png)
 
----
-
 ### Log into Linux Instance  
 
-When the Linux instance boots, the [userdata script](02-servers/scripts/userdata.sh) runs the following tasks:  
+When the Linux instance boots, the [custom data script](02-servers/scripts/custom_data.sh) runs the following tasks:  
 
 - Update OS and install required packages  
 - Install AWS CLI  
@@ -143,15 +151,12 @@ When the Linux instance boots, the [userdata script](02-servers/scripts/userdata
 - Enable password authentication for AD users  
 - Configure SSSD for AD integration  
 - Grant sudo privileges to the `linux-admins` group  
+- Configure instance as a Samba file gateway to NFS
 
 Linux user credentials are stored as secrets.
 
 ![Linux EC2 Instance](linux.png)
 
----
-
-
----
 
 ### Clean Up  
 
@@ -163,6 +168,4 @@ When finished, remove all resources with:
 
 This uses Terraform to delete the VNet, VMs, Key Vault, storage accounts, NSGs, and secrets.  
 
----
 
-⚠️ **Reminder:** This project is for **labs and development only**. Do not use it in production.  
