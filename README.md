@@ -51,8 +51,8 @@ If this is your first time watching our content, we recommend starting with this
 ## Download this Repository  
 
 ```bash
-git clone https://github.com/mamonaco1973/azure-files.git
-cd azure-files
+git clone https://github.com/mamonaco1973/azure-nfs-files.git
+cd azure-nfs-files
 ```  
 
 ## Build the Code  
