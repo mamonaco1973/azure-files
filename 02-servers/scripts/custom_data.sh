@@ -76,7 +76,7 @@ mount /home
 az login --identity --allow-no-subscriptions
 secretsJson=$(az keyvault secret show --name admin-ad-credentials --vault-name ${vault_name} --query value -o tsv)
 admin_password=$(echo "$secretsJson" | jq -r '.password')
-admin_username="MCLOUD\\Admin"
+admin_username="${netbios}\\Admin"
 
 # Perform AD join with Samba as membership software (logs to /root/join.log)
 echo -e "$admin_password" | sudo /usr/sbin/realm join --membership-software=samba \
