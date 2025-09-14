@@ -246,6 +246,6 @@ chmod 770 /nfs/data
 chmod 700 /home/*
 
 cd /nfs
-git clone https://github.com/mamonaco1973/azure-files.git
-chmod -R 775 azure-files
-chgrp -R mcloud-users azure-files
+git clone https://github.com/mamonaco1973/azure-nfs-files.git
+chmod -R 775 azure-nfs-files
+chgrp -R mcloud-users azure-nfs-files
