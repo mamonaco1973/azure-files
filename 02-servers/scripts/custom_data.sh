@@ -76,11 +76,12 @@ mount /home
 az login --identity --allow-no-subscriptions
 secretsJson=$(az keyvault secret show --name admin-ad-credentials --vault-name ${vault_name} --query value -o tsv)
 admin_password=$(echo "$secretsJson" | jq -r '.password')
-admin_username=$(echo "$secretsJson" | jq -r '.username' | sed 's/.*\\//')
+admin_username="MCLOUD\\Admin"
 
-# Perform AD join with Samba as membership software (logs to /tmp/join.log)
+# Perform AD join with Samba as membership software (logs to /root/join.log)
 echo -e "$admin_password" | sudo /usr/sbin/realm join --membership-software=samba \
-    -U "$admin_username" ${domain_fqdn} --verbose >> /tmp/join.log 2>&1
+    -U "$admin_username" ${domain_fqdn} --verbose >> /root/join.log 2>&1
+
 # ---------------------------------------------------------------------------------
 # Section 6: Configure SSSD for AD Integration
 # ---------------------------------------------------------------------------------
@@ -188,7 +189,6 @@ sudo rm /tmp/smb.conf
 # Insert NetBIOS hostname dynamically
 head /etc/hostname -c 15 > /tmp/netbios-name
 value=$(</tmp/netbios-name)
-value=$(echo "$value" | tr -d '-' | tr '[:lower:]' '[:upper:]')
 export netbios="$${value^^}"
 sudo sed -i "s/#netbios/netbios name=$netbios/g" /etc/samba/smb.conf
 

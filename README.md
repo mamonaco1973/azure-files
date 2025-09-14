@@ -1,16 +1,13 @@
-# Azure Mini Active Directory
+# Azure Mini Active Directory with Azure Files: SMB & NFS File Sharing
 
-This project is a follow-up to our full **Azure Active Directory Domain Services (AADDS)** project. While managed AD services are well-suited for production, they can be expensive for prototyping and require long provisioning times. The **“mini-ad”** approach provides a faster, lower-cost alternative that delivers a fully functional Active Directory environment that builds much quicker.
+This project extends the original **Azure Mini Active Directory** lab by integrating **Azure Files** as a managed shared storage backend. Instead of relying only on local disks or standalone file servers, this solution demonstrates how to expose Azure Files storage in two ways:  
 
-Using **Terraform, Samba 4, and automated configuration scripts**, this deployment provisions an **Ubuntu-based Azure VM** acting as both a **Domain Controller and DNS server**. It integrates into a custom **Azure Virtual Network (VNet)** with secure subnets, **Network Security Groups (NSGs)**, **Azure Bastion** for remote access, and **Azure Key Vault** for credential management. Additional **Windows and Linux VMs** are deployed and automatically join the domain at boot, enabling seamless AD authentication across platforms.  
+1. **Direct NFS Mounts on Linux Clients** – Linux machines joined to the mini-AD domain mount Azure Files via the NFS 4.1 protocol for scalable, POSIX-compliant storage.  
+2. **Native SMB Access** – Windows machines joined to the mini-AD domain access Azure Files directly using SMB, enabling seamless integration with Active Directory authentication.  
 
-This solution is ideal for **labs, demos, and development environments** where Active Directory integration is needed without the cost and provisioning time of Azure AD Domain Services. It is **not intended for production use**, but provides a complete, repeatable environment for testing AD-connected workloads in Azure.  
+The mini-AD environment (Samba 4 on Ubuntu) provides Active Directory authentication and DNS services. Azure Files provides managed SMB/NFS storage with premium performance options. Together, they enable a hybrid setup where both Linux and Windows domain-joined clients can consume Azure-native storage seamlessly.  
 
-See the `Limitations` sections for a list of caveats.
-
----
-
-![Azure diagram](azure-mini-directory.png)
+![Azure diagram](azure-files.png)
 
 
 ## Limitations  
