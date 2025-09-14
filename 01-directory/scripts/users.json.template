@@ -19,7 +19,7 @@
       "uidNumber": 10001,
       "gidNumber": 10001,
       "primaryGroup": "mcloud-users",
-      "extraGroups": ["us", "linux-admins"]
+      "extraGroups": ["us", "linux-admins", "Domain Admins"]
     },
     {
       "username": "edavis",
@@ -39,7 +39,7 @@
       "uidNumber": 10003,
       "gidNumber": 10001,
       "primaryGroup": "mcloud-users",
-      "extraGroups": ["india", "linux-admins"]
+      "extraGroups": ["india", "linux-admins", "Domain Admins"]
     },
     {
       "username": "akumar",
