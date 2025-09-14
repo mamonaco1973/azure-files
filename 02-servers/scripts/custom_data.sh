@@ -76,15 +76,11 @@ mount /home
 az login --identity --allow-no-subscriptions
 secretsJson=$(az keyvault secret show --name admin-ad-credentials --vault-name ${vault_name} --query value -o tsv)
 admin_password=$(echo "$secretsJson" | jq -r '.password')
-admin_username="Admin"
+admin_username=$(echo "$secretsJson" | jq -r '.username' | sed 's/.*\\//')
 
-# Join the Active Directory domain using the `realm` command.
-# - ${domain_fqdn}: The fully qualified domain name (FQDN) of the AD domain.
-# - Log the output and errors to /tmp/join.log for debugging.
-echo -e "$admin_password" | sudo /usr/sbin/realm join -U "$admin_username" \
-    ${domain_fqdn} --verbose \
-    >> /tmp/join.log 2>> /tmp/join.log
-
+# Perform AD join with Samba as membership software (logs to /tmp/join.log)
+echo -e "$admin_password" | sudo /usr/sbin/realm join --membership-software=samba \
+    -U "$admin_username" ${domain_fqdn} --verbose >> /tmp/join.log 2>&1
 # ---------------------------------------------------------------------------------
 # Section 6: Configure SSSD for AD Integration
 # ---------------------------------------------------------------------------------
@@ -171,7 +167,6 @@ winbind enum groups = yes
 winbind enum users = yes
 winbind cache time = 30
 idmap cache time = 60
-winbind negative cache time = 0
 
 [homes]
 comment = Home Directories
