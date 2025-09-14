@@ -58,6 +58,17 @@ for ($i=1; $i -le $maxRetries; $i++) {
         Start-Sleep -Seconds $retryDelay
     }
 }
+# ------------------------------------------------------------
+# Map EFS as Persistent Drive (Z:)
+# ------------------------------------------------------------
+
+# Create a startup batch script to map Z: to the EFS share via Samba
+$startup = "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp"
+$batchFile = Join-Path $startup "map_drives.bat"
+
+# Command mounts \\${nfs_gateway}\nfs persistently at logon
+$command = "net use Z: \\${nfs_gateway}\nfs /persistent:yes"
+Set-Content -Path $batchFile -Value $command -Encoding ASCII
 
 # ------------------------------------------------------------
 # Final Reboot to Apply Changes
