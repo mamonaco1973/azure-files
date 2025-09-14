@@ -60,7 +60,7 @@ cd azure-nfs-files
 Run [check_env](check_env.sh) to validate your environment, then run [apply](apply.sh) to provision the infrastructure.  
 
 ```bash
-develop-vm:~/azure-files$ ./apply.sh
+develop-vm:~/azure-nfs-files$ ./apply.sh
 NOTE: Validating that required commands are in PATH.
 NOTE: az is found in the current PATH.
 NOTE: terraform is found in the current PATH.
