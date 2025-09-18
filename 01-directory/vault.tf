@@ -33,6 +33,7 @@ resource "azurerm_key_vault" "ad_key_vault" {
   tenant_id                 = data.azurerm_client_config.current.tenant_id            # Azure AD tenant ID
   purge_protection_enabled  = false                                                   # Allow permanent delete (lab use only)           
   rbac_authorization_enabled = true                                                   # rbac authorization enabled
+}
 
 # --------------------------------------------------------------------------------------------------
 # Role Assignment: Grant current client permission to manage secrets
