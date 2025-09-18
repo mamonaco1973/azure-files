@@ -23,6 +23,7 @@ resource "azurerm_subnet" "vm_subnet" {
   resource_group_name  = azurerm_resource_group.ad.name
   virtual_network_name = azurerm_virtual_network.ad_vnet.name
   address_prefixes     = ["10.0.0.0/25"]
+  default_outbound_access_enabled = false
 }
 
 # --------------------------------------------------------------------------------------------------
@@ -33,6 +34,7 @@ resource "azurerm_subnet" "mini_ad_subnet" {
   resource_group_name  = azurerm_resource_group.ad.name
   virtual_network_name = azurerm_virtual_network.ad_vnet.name
   address_prefixes     = ["10.0.0.128/25"]
+  default_outbound_access_enabled = false
 }
 
 # --------------------------------------------------------------------------------------------------
@@ -100,4 +102,44 @@ resource "azurerm_network_security_group" "vm_nsg" {
 resource "azurerm_subnet_network_security_group_association" "vm_nsg_assoc" {
   subnet_id                 = azurerm_subnet.vm_subnet.id
   network_security_group_id = azurerm_network_security_group.vm_nsg.id
+}
+
+# --------------------------------------------------------------------------------------------------
+# NAT Gateway: Public IP, Gateway, and Associations
+# --------------------------------------------------------------------------------------------------
+
+# Public IP for NAT Gateway
+resource "azurerm_public_ip" "nat_gateway_pip" {
+  name                = "nat-gateway-pip"
+  location            = azurerm_resource_group.ad.location
+  resource_group_name = azurerm_resource_group.ad.name
+  allocation_method   = "Static"
+  sku                 = "Standard"
+}
+
+# NAT Gateway Resource
+resource "azurerm_nat_gateway" "vm_nat_gateway" {
+  name                = "vm-nat-gateway"
+  location            = azurerm_resource_group.ad.location
+  resource_group_name = azurerm_resource_group.ad.name
+  sku_name            = "Standard"
+  idle_timeout_in_minutes = 10
+}
+
+# Associate Public IP with NAT Gateway
+resource "azurerm_nat_gateway_public_ip_association" "nat_gw_pip_assoc" {
+  nat_gateway_id       = azurerm_nat_gateway.vm_nat_gateway.id
+  public_ip_address_id = azurerm_public_ip.nat_gateway_pip.id
+}
+
+# Associate NAT Gateway with VM Subnet
+resource "azurerm_subnet_nat_gateway_association" "vm_nat_assoc" {
+  subnet_id      = azurerm_subnet.vm_subnet.id
+  nat_gateway_id = azurerm_nat_gateway.vm_nat_gateway.id
+}
+
+# Associate NAT Gateway with Mini-AD Subnet
+resource "azurerm_subnet_nat_gateway_association" "mini_ad_nat_assoc" {
+  subnet_id      = azurerm_subnet.mini_ad_subnet.id
+  nat_gateway_id = azurerm_nat_gateway.vm_nat_gateway.id
 }

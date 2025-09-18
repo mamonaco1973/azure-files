@@ -19,6 +19,9 @@ module "mini_ad" {
   dns_zone          = var.dns_zone                                   # DNS zone (e.g., mcloud.mikecloud.com)
   subnet_id         = azurerm_subnet.mini_ad_subnet.id               # Subnet for AD VM placement
   admin_password    = random_password.sysadmin_password.result       # Linux sysadmin password for AD VM
+
+  depends_on = [azurerm_nat_gateway.vm_nat_gateway,azurerm_subnet_nat_gateway_association.mini_ad_nat_assoc]
+
 }
 
 # ==========================================================================================
